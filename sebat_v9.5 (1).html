@@ -181,12 +181,13 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:#f5f7fa;
   import { getFirestore, collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc, onSnapshot, query, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const firebaseConfig = {
-    apiKey: "AIzaSyCT5PmkwsAr17WDHRkLKP1JlpZ42z-AhBA",
-    authDomain: "asistan-13497.firebaseapp.com",
-    projectId: "asistan-13497",
-    storageBucket: "asistan-13497.firebasestorage.app",
-    messagingSenderId: "886509733082",
-    appId: "1:886509733082:web:a1ca0836d0f2ec5ac911e3"
+     apiKey: "AIzaSyCT5PmkwsAr17WDHRkLKP1JlpZ42z-AhBA",
+     authDomain: "asistan-13497.firebaseapp.com",
+     databaseURL: "https://asistan-13497-default-rtdb.europe-west1.firebasedatabase.app",
+     projectId: "asistan-13497",
+     storageBucket: "asistan-13497.firebasestorage.app",
+     messagingSenderId: "886509733082",
+     appId: "1:886509733082:web:a1ca0836d0f2ec5ac911e3"
   };
 
   const app = initializeApp(firebaseConfig);
