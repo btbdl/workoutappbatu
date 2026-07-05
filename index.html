@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+<title>Antrenman Takip</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#181C1E; --panel:#22282A; --panel-alt:#2A3134; --line:#39423F;
+    --chalk:#EDEAE1; --muted:#93A19E; --plate:#E3A93A; --chrome:#7C97A3;
+    --ok:#7A9E74; --danger:#B0554A;
+    --font-display:'Oswald','Arial Narrow',sans-serif;
+    --font-body:'Inter',system-ui,sans-serif;
+    --font-mono:'JetBrains Mono','SFMono-Regular',monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;height:100%;background:var(--bg);color:var(--chalk);font-family:var(--font-body);}
+  #app{max-width:480px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;position:relative;}
+  button{font-family:var(--font-body);cursor:pointer;}
+  input,select{font-family:var(--font-body);}
+  ::-webkit-scrollbar{width:6px;} ::-webkit-scrollbar-thumb{background:var(--line);border-radius:3px;}
+
+  /* ---- lock screen ---- */
+  #lock{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:100;}
+  #lock input{background:var(--panel-alt);border:1px solid var(--line);border-radius:8px;padding:12px 14px;color:var(--chalk);font-size:15px;width:220px;text-align:center;}
+  #lock button{background:var(--plate);color:var(--bg);border:none;border-radius:8px;padding:12px 24px;font-family:var(--font-display);font-weight:700;letter-spacing:.5px;}
+  #lock-error{color:var(--danger);font-size:12px;height:14px;}
+
+  /* ---- header / nav ---- */
+  #header{padding:20px 20px 14px;border-bottom:1px solid var(--line);}
+  #header .title{font-family:var(--font-display);font-size:26px;font-weight:700;letter-spacing:1px;}
+  #header .bar{height:3px;width:40px;background:var(--plate);margin-top:8px;border-radius:2px;}
+  #nav{display:flex;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:10;}
+  #nav button{flex:1;padding:12px 0;background:transparent;border:none;color:var(--muted);font-family:var(--font-display);font-size:13px;letter-spacing:.5px;font-weight:600;border-bottom:2px solid transparent;margin-bottom:-1px;}
+  #nav button.active{color:var(--plate);border-bottom:2px solid var(--plate);}
+
+  #content{flex:1;overflow-y:auto;padding:8px 16px 24px;}
+  .view{display:none;} .view.active{display:block;}
+
+  .day-title{font-family:var(--font-display);font-size:16px;letter-spacing:.5px;color:var(--chrome);}
+  .day-block{margin-top:18px;}
+  .day-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .add-btn{background:var(--panel-alt);color:var(--plate);border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;}
+  .rest-day{color:var(--muted);font-size:13px;padding:10px 2px;}
+
+  .ex-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;display:flex;gap:10px;align-items:center;}
+  .ex-card .info{flex:1;min-width:0;}
+  .ex-name{font-size:14px;font-weight:600;cursor:pointer;}
+  .ex-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+  .remove-btn{background:transparent;border:none;color:var(--danger);font-size:18px;padding:4px;}
+
+  .stepper{display:flex;flex-direction:column;align-items:center;}
+  .stepper .label{font-size:9px;color:var(--muted);margin-bottom:2px;}
+  .stepper .ctrl{display:flex;align-items:center;background:var(--panel-alt);border-radius:6px;}
+  .stepper button{background:transparent;border:none;color:var(--chalk);width:20px;padding:2px 0;font-size:12px;}
+  .stepper .val{width:20px;text-align:center;font-family:var(--font-mono);font-size:12px;}
+
+  .day-pills{display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;margin-bottom:6px;}
+  .day-pills button{flex-shrink:0;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;background:var(--panel-alt);color:var(--muted);border:none;}
+  .day-pills button.active{background:var(--plate);color:var(--bg);}
+
+  .today-card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;}
+  .set-row{display:flex;gap:8px;align-items:center;margin-bottom:6px;}
+  .set-row .idx{width:20px;font-size:11px;color:var(--muted);font-family:var(--font-mono);}
+  .set-row input{width:60px;background:var(--panel-alt);border:1px solid var(--line);border-radius:6px;padding:6px 8px;color:var(--chalk);font-family:var(--font-mono);font-size:13px;}
+  .done-btn{margin-left:auto;width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:15px;font-weight:700;}
+  .done-btn.done{border-color:var(--ok);background:var(--ok);color:var(--bg);}
+
+  #save-workout{width:100%;background:var(--plate);color:var(--bg);border:none;border-radius:10px;padding:14px 0;font-family:var(--font-display);font-size:15px;font-weight:700;letter-spacing:.5px;margin-top:4px;}
+
+  .stat-row{display:flex;gap:10px;margin-bottom:16px;}
+  .stat-card{flex:1;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;text-align:center;}
+  .stat-card .v{font-size:20px;font-family:var(--font-mono);font-weight:600;color:var(--plate);}
+  .stat-card .l{font-size:10px;color:var(--muted);margin-top:4px;}
+  #progress-select{width:100%;background:var(--panel-alt);border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:var(--chalk);margin-bottom:14px;font-size:14px;}
+  #chart-wrap{height:200px;background:var(--panel);border-radius:10px;border:1px solid var(--line);padding:10px 6px 0;}
+  .chart-label{font-size:12px;color:var(--chrome);margin-bottom:6px;font-weight:600;}
+  .empty-note{text-align:center;color:var(--muted);padding:30px 0;font-size:13px;}
+
+  /* upload box */
+  .upload-box{background:var(--panel);border:1px dashed var(--line);border-radius:10px;padding:14px;margin-bottom:16px;text-align:center;}
+  .upload-box .lbl{font-size:12px;color:var(--muted);margin-bottom:8px;}
+  .upload-box input[type=file]{display:none;}
+  .upload-box .btn{background:var(--panel-alt);color:var(--chrome);border:1px solid var(--line);border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;display:inline-block;}
+  #upload-status{font-size:11px;margin-top:8px;}
+
+  /* modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-end;z-index:50;}
+  .modal{background:var(--panel);width:100%;max-width:480px;margin:0 auto;border-radius:16px 16px 0 0;padding:18px;max-height:85vh;overflow-y:auto;border:1px solid var(--line);border-bottom:none;}
+  .modal-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+  .modal-title{font-family:var(--font-display);font-size:16px;letter-spacing:.5px;}
+  .modal-close{background:transparent;border:none;color:var(--muted);font-size:20px;}
+  .modal input,.modal select{width:100%;background:var(--panel-alt);border:1px solid var(--line);border-radius:8px;padding:10px 12px;color:var(--chalk);margin-bottom:12px;font-size:14px;}
+  .picker-row{display:flex;gap:10px;align-items:center;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;}
+  .picker-row .n{font-size:13px;font-weight:600;}
+  .picker-row .m{font-size:11px;color:var(--muted);}
+  .tip-box{background:var(--panel-alt);border-radius:8px;padding:10px;font-size:12.5px;color:var(--muted);border-left:3px solid var(--plate);}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- LOCK SCREEN -->
+  <div id="lock">
+    <div style="font-family:var(--font-display);font-size:22px;letter-spacing:1px;">ANTRENMAN TAKİP</div>
+    <input id="lock-input" type="password" placeholder="Şifre" />
+    <div id="lock-error"></div>
+    <button id="lock-btn">Giriş</button>
+  </div>
+
+  <div id="header">
+    <div class="title" id="view-title">PROGRAM</div>
+    <div class="bar"></div>
+  </div>
+
+  <div id="nav">
+    <button data-tab="program" class="active">Program</button>
+    <button data-tab="today">Bugün</button>
+    <button data-tab="progress">İlerleme</button>
+  </div>
+
+  <div id="content">
+    <div id="view-program" class="view active"></div>
+    <div id="view-today" class="view"></div>
+    <div id="view-progress" class="view"></div>
+  </div>
+
+  <div id="modal-root"></div>
+</div>
+
+<script type="module">
+/* =========================================================
+   1) BURAYI DÜZENLE — Firebase config + basit şifre
+========================================================= */
+const APP_PASSWORD = "DEĞİŞTİR_BUNU"; // istediğin şifreyi buraya yaz
+
+const firebaseConfig = {
+  apiKey: "BURAYA_API_KEY",
+  authDomain: "BURAYA_PROJE.firebaseapp.com",
+  projectId: "BURAYA_PROJE_ID",
+  storageBucket: "BURAYA_PROJE.appspot.com",
+  messagingSenderId: "BURAYA_SENDER_ID",
+  appId: "BURAYA_APP_ID"
+};
+/* ========================================================= */
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  getFirestore, doc, getDoc, setDoc, collection, getDocs
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const db = getFirestore(fbApp);
+
+/* =========================================================
+   2) EGZERSİZ KÜTÜPHANESİ (haftalık JSON, exerciseId ile buraya referans verir)
+========================================================= */
+const GROUP_LABEL = { chest:"Göğüs", shoulders:"Omuz", back:"Sırt", arms:"Kol", abs:"Karın", quads:"Bacak (ön)", glutes:"Kalça / Arka Bacak", calves:"Baldır" };
+
+const EX = {
+  "machine-chest-press": { name:"Machine Chest Press", group:"chest", equip:"Makine", tip:"Sırtını yastığa yapıştır, kürek kemiklerini geriye topla.", steps:["Koltuğu göğüs hizasına ayarla","Tutamakları göğüs seviyesinde kavra","Nefes ver, öne doğru it","Kontrollü şekilde geri getir"] },
+  "incline-machine-press": { name:"Incline Machine Press", group:"chest", equip:"Makine", tip:"Üst göğüs için omuzları geriye çek, dirsekleri 45° tut.", steps:["Koltuğu eğimli makineye otur","Tutamakları üst göğüs hizasında kavra","Yukarı-öne doğru it","Yavaşça başlangıca dön"] },
+  "machine-row": { name:"Machine Row (Seated Row)", group:"back", equip:"Makine", tip:"Dirsekleri vücuduna yakın tut, sırtı kambur yapma.", steps:["Göğsünü yastığa yasla","Tutamakları kavra, sırtını düz tut","Dirsekleri geriye çekerek çek","Kontrollü bırak"] },
+  "seated-cable-row": { name:"Seated Cable Row", group:"back", equip:"Kablo", tip:"Çekerken göğsü ileri, omuzları aşağı-geri tut.", steps:["Ayaklarını platforma yerleştir, dizleri hafif kır","Sapı kavra, sırtı dik tut","Karına doğru çek","Yavaşça uzat"] },
+  "lat-pulldown": { name:"Lat Pulldown", group:"back", equip:"Kablo/Makine", tip:"Barı göğsüne indir, omuzları kulaktan uzak tut.", steps:["Bacakları sabitle, geniş tutuşla barı kavra","Göğsüne doğru çek","Sırt kaslarını sık","Kontrollü şekilde yukarı bırak"] },
+  "assisted-pullup": { name:"Assisted Pull-up Machine", group:"back", equip:"Makine", tip:"Destek ağırlığını başlangıçta yüksek tutmaktan çekinme.", steps:["Dizini destek platformuna koy","Geniş tutuşla barı kavra","Çeneni bar seviyesine çek","Kontrollü in"] },
+  "db-shoulder-press": { name:"Dumbbell Shoulder Press", group:"shoulders", equip:"Dumbbell", tip:"Belini kavis yaptırma, karnını sık tut.", steps:["Dumbbell'ları omuz hizasında tut","Yukarı doğru it, tepede birleştirme","Kontrollü indir","Tekrarla"] },
+  "machine-shoulder-press": { name:"Machine Shoulder Press", group:"shoulders", equip:"Makine", tip:"Koltuk yüksekliğini tutamaklar omuz hizasında olacak şekilde ayarla.", steps:["Sırtını yastığa yasla","Tutamakları kavra","Yukarı it","Kontrollü indir"] },
+  "lateral-raise": { name:"Lateral Raise (Dumbbell)", group:"shoulders", equip:"Dumbbell", tip:"Hafif ağırlıkla dirsekleri hafif kır, omuz hizasına kadar kaldır.", steps:["Dumbbell'ları yanlarda tut","Kollarını yana doğru omuz hizasına kaldır","Bir an bekle","Yavaşça indir"] },
+  "face-pull": { name:"Face Pull", group:"shoulders", equip:"Kablo", tip:"İpi yüzüne doğru çek, dirsekleri yüksek tut.", steps:["Kabloyu yüz hizasına ayarla","İp tutamağını iki elle kavra","Yüzüne doğru çek, dirsekler yukarıda","Kontrollü bırak"] },
+  "db-bicep-curl": { name:"Dumbbell Bicep Curl", group:"arms", equip:"Dumbbell", tip:"Dirsekleri sabit tut, sadece ön kol hareket etsin.", steps:["Dumbbell'ları yanlarda tut, avuç içi öne","Dirsekten kıvırarak kaldır","Üstte sık","Kontrollü indir"] },
+  "triceps-pushdown": { name:"Triceps Pushdown", group:"arms", equip:"Kablo", tip:"Dirsekleri sabit tut, sadece ön kolu hareket ettir.", steps:["Kabloyu yukarı sabitle, sapı kavra","Dirsekleri gövdene yapıştır","Aşağı it","Kontrollü yukarı bırak"] },
+  "leg-press": { name:"Leg Press", group:"quads", equip:"Makine", tip:"Dizlerini içe çökertme, ayak genişliği omuz hizasında olsun.", steps:["Ayaklarını platforma omuz genişliğinde yerleştir","Kilidi aç, kontrollü indir","Dizler 90°'ye yakınken it","Kilitlemeden yukarı çık"] },
+  "hack-squat": { name:"Machine Squat (Hack Squat)", group:"quads", equip:"Makine", tip:"Sırtını yastığa sabitle, dizleri ayak parmaklarıyla aynı yöne tut.", steps:["Omuzları pedlerin altına yerleştir","Kontrollü şekilde çök","Topuklardan it, kalk","Dizleri kilitleme"] },
+  "leg-extension": { name:"Leg Extension", group:"quads", equip:"Makine", tip:"Üstte bir an bekleyerek quadriceps sıkışmasını hisset.", steps:["Bacaklarını pedin altına yerleştir","Dizlerini düzleştirerek kaldır","Üstte sık","Kontrollü indir"] },
+  "leg-curl": { name:"Leg Curl", group:"glutes", equip:"Makine", tip:"Kalçanı makineye sabitle, sadece dizden kıvır.", steps:["Bacaklarını pedin üstüne/altına yerleştir","Dizden kıvırarak çek","Üstte sık","Kontrollü uzat"] },
+  "hip-thrust-machine": { name:"Hip Thrust Machine", group:"glutes", equip:"Makine", tip:"Üstte kalçanı sıkarak bir an bekle.", steps:["Sırtını yastığa yasla, ped kalçanın üstünde","Kalçanı yukarı it","Üstte sık","Kontrollü indir"] },
+  "hip-abduction": { name:"Hip Abduction/Adduction", group:"glutes", equip:"Makine", tip:"Hareketi yavaş ve kontrollü yap, momentum kullanma.", steps:["Bacaklarını pedlerin arasına yerleştir","Dışa/içe doğru it","Bir an bekle","Kontrollü başa dön"] },
+  "calf-raise-machine": { name:"Calf Raise (Machine)", group:"calves", equip:"Makine", tip:"Üstte bir an bekle, aşağıda tam esneme yap.", steps:["Omuzları pedin altına yerleştir","Topuklarını yukarı kaldır","Üstte sık","Yavaşça indir"] },
+  "seated-calf-raise": { name:"Seated Calf Raise", group:"calves", equip:"Makine", tip:"Baldırın alt kısmını hedeflemek için oturarak yap.", steps:["Dizlerini pedin altına yerleştir","Topuklarını kaldır","Bir an bekle","Kontrollü indir"] },
+  "ab-machine": { name:"Ab / Crunch Machine", group:"abs", equip:"Makine", tip:"Boynu değil karnı kullanarak kıvrıl.", steps:["Göğsünü pede yasla","Karnını sıkarak öne kıvrıl","Bir an sık","Kontrollü geri dön"] },
+  "plank": { name:"Plank", group:"abs", equip:"Vücut ağırlığı", tip:"Kalçanı yukarı kaldırma, düz bir çizgi oluştur.", steps:["Dirseklerini omuz altına yerleştir","Vücudunu düz bir hat yap","Karnını sık, pozisyonu koru","Süre boyunca nefes al"] },
+};
+
+const DAY_KEYS = ["mon","tue","wed","thu","fri"];
+const DAY_LABEL = { mon:"Pazartesi", tue:"Salı", wed:"Çarşamba", thu:"Perşembe", fri:"Cuma" };
+const JS_DAY_TO_KEY = ["sun","mon","tue","wed","thu","fri","sat"];
+
+const DEFAULT_PROGRAM = {
+  mon:[{exerciseId:"machine-chest-press",sets:4,repsMin:8,repsMax:10},{exerciseId:"machine-row",sets:4,repsMin:8,repsMax:10},{exerciseId:"db-shoulder-press",sets:3,repsMin:8,repsMax:10},{exerciseId:"lat-pulldown",sets:3,repsMin:10,repsMax:12},{exerciseId:"lateral-raise",sets:3,repsMin:12,repsMax:15},{exerciseId:"db-bicep-curl",sets:3,repsMin:10,repsMax:12}],
+  tue:[{exerciseId:"leg-press",sets:4,repsMin:10,repsMax:12},{exerciseId:"leg-extension",sets:3,repsMin:12,repsMax:15},{exerciseId:"leg-curl",sets:3,repsMin:12,repsMax:15},{exerciseId:"hip-thrust-machine",sets:3,repsMin:10,repsMax:12},{exerciseId:"calf-raise-machine",sets:4,repsMin:15,repsMax:20},{exerciseId:"ab-machine",sets:3,repsMin:15,repsMax:20}],
+  wed:[],
+  thu:[{exerciseId:"incline-machine-press",sets:4,repsMin:8,repsMax:10},{exerciseId:"seated-cable-row",sets:4,repsMin:8,repsMax:10},{exerciseId:"machine-shoulder-press",sets:3,repsMin:8,repsMax:10},{exerciseId:"assisted-pullup",sets:3,repsMin:10,repsMax:12},{exerciseId:"face-pull",sets:3,repsMin:12,repsMax:15},{exerciseId:"triceps-pushdown",sets:3,repsMin:10,repsMax:12}],
+  fri:[{exerciseId:"hack-squat",sets:4,repsMin:10,repsMax:12},{exerciseId:"leg-press",sets:3,repsMin:10,repsMax:12},{exerciseId:"leg-curl",sets:3,repsMin:12,repsMax:15},{exerciseId:"hip-abduction",sets:3,repsMin:12,repsMax:15},{exerciseId:"seated-calf-raise",sets:4,repsMin:15,repsMax:20},{exerciseId:"plank",sets:3,repsMin:1,repsMax:1,isTimed:true}],
+};
+
+/* =========================================================
+   3) STATE
+========================================================= */
+let program = structuredClone(DEFAULT_PROGRAM);
+let logs = []; // [{date, dayKey, entries:[{exerciseId, sets:[{weight,reps,done}]}]}]
+let customEx = {}; // JSON'dan gelen kütüphanede olmayan hareketler
+let currentTab = "program";
+let todayDayKey = JS_DAY_TO_KEY[new Date().getDay()];
+todayDayKey = DAY_KEYS.includes(todayDayKey) ? todayDayKey : "mon";
+let progressExId = "machine-chest-press";
+let todayDraft = {};
+
+function getExDef(id, fallback){
+  return EX[id] || customEx[id] || fallback || { name:id, group:"chest", equip:"—", tip:"", steps:[] };
+}
+
+/* =========================================================
+   4) MUSCLE DIAGRAM (SVG)
+========================================================= */
+function muscleDiagram(group, size=44){
+  const isBack = group === "back" || group === "glutes";
+  const on = "var(--plate)", off = "#3B4245";
+  const seg = (key, node) => `<g style="opacity:${group===key?1:0.28}">${node}</g>`;
+  return `
+  <svg width="${size}" height="${size*1.5}" viewBox="0 0 60 90" style="flex-shrink:0">
+    <circle cx="30" cy="9" r="7" fill="${off}"/>
+    ${seg("shoulders", `<circle cx="13" cy="20" r="6" fill="${on}"/><circle cx="47" cy="20" r="6" fill="${on}"/>`)}
+    ${!isBack ? seg("chest", `<rect x="18" y="17" width="24" height="16" rx="3" fill="${on}"/>`) : ""}
+    ${isBack ? seg("back", `<rect x="17" y="16" width="26" height="24" rx="3" fill="${on}"/>`) : ""}
+    ${seg("arms", `<rect x="6" y="21" width="8" height="28" rx="3" fill="${on}"/><rect x="46" y="21" width="8" height="28" rx="3" fill="${on}"/>`)}
+    ${!isBack ? seg("abs", `<rect x="21" y="34" width="18" height="16" rx="2" fill="${on}"/>`) : ""}
+    ${!isBack ? seg("quads", `<rect x="16" y="52" width="11" height="22" rx="3" fill="${on}"/><rect x="33" y="52" width="11" height="22" rx="3" fill="${on}"/>`) : ""}
+    ${isBack ? seg("glutes", `<rect x="16" y="40" width="28" height="12" rx="4" fill="${on}"/><rect x="16" y="52" width="11" height="22" rx="3" fill="${on}"/><rect x="33" y="52" width="11" height="22" rx="3" fill="${on}"/>`) : ""}
+    ${seg("calves", `<rect x="17" y="76" width="9" height="12" rx="3" fill="${on}"/><rect x="34" y="76" width="9" height="12" rx="3" fill="${on}"/>`)}
+  </svg>`;
+}
+
+/* =========================================================
+   5) FIRESTORE HELPERS
+========================================================= */
+async function loadProgram(){
+  try{
+    const snap = await getDoc(doc(db, "program", "current"));
+    if(snap.exists()){
+      const data = snap.data();
+      program = data.days || DEFAULT_PROGRAM;
+      customEx = data.customExercises || {};
+    }
+  }catch(e){ console.error("program yüklenemedi", e); }
+}
+async function saveProgram(){
+  try{
+    await setDoc(doc(db, "program", "current"), { days: program, customExercises: customEx, updatedAt: new Date().toISOString() });
+  }catch(e){ console.error("program kaydedilemedi", e); }
+}
+async function loadLogs(){
+  try{
+    const snap = await getDocs(collection(db, "logs"));
+    logs = snap.docs.map(d => d.data());
+  }catch(e){ console.error("kayıtlar yüklenemedi", e); }
+}
+async function saveLog(entry){
+  try{
+    const id = `${entry.date}_${entry.dayKey}`;
+    await setDoc(doc(db, "logs", id), entry);
+  }catch(e){ console.error("kayıt yazılamadı", e); }
+}
+
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+/* =========================================================
+   6) RENDER: PROGRAM TAB
+========================================================= */
+function renderProgram(){
+  const el = document.getElementById("view-program");
+  el.innerHTML = "";
+  DAY_KEYS.forEach(dayKey => {
+    const block = document.createElement("div");
+    block.className = "day-block";
+    const entries = program[dayKey] || [];
+    block.innerHTML = `
+      <div class="day-head">
+        <div class="day-title">${DAY_LABEL[dayKey].toUpperCase()}</div>
+        <button class="add-btn" data-day="${dayKey}">+ Hareket</button>
+      </div>
+      ${entries.length === 0 ? `<div class="rest-day">Dinlenme günü</div>` : ""}
+      <div class="ex-list"></div>
+    `;
+    const list = block.querySelector(".ex-list");
+    entries.forEach((entry, idx) => {
+      const ex = getExDef(entry.exerciseId);
+      const card = document.createElement("div");
+      card.className = "ex-card";
+      card.innerHTML = `
+        <div class="diagram-btn" style="cursor:pointer">${muscleDiagram(ex.group, 30)}</div>
+        <div class="info">
+          <div class="ex-name">${ex.name}</div>
+          <div class="ex-meta">${GROUP_LABEL[ex.group]||ex.group} · ${ex.equip}</div>
+          <div class="steppers" style="display:flex;gap:6px;margin-top:6px;align-items:center;"></div>
+        </div>
+        <button class="remove-btn">×</button>
+      `;
+      const steppers = card.querySelector(".steppers");
+      steppers.appendChild(makeStepper("Set", entry.sets, 1, 8, v => { entry.sets=v; saveProgram(); }));
+      steppers.appendChild(makeStepper("Min Tekrar", entry.repsMin, 1, 30, v => { entry.repsMin=v; saveProgram(); }));
+      steppers.appendChild(makeStepper("Max Tekrar", entry.repsMax, 1, 30, v => { entry.repsMax=v; saveProgram(); }));
+      card.querySelector(".diagram-btn").onclick = () => openDetailModal(entry.exerciseId);
+      card.querySelector(".ex-name").onclick = () => openDetailModal(entry.exerciseId);
+      card.querySelector(".remove-btn").onclick = () => { entries.splice(idx,1); saveProgram(); renderProgram(); };
+      list.appendChild(card);
+    });
+    block.querySelector(".add-btn").onclick = () => openPickerModal(dayKey);
+    el.appendChild(block);
+  });
+}
+
+function makeStepper(label, value, min, max, onChange){
+  const wrap = document.createElement("div");
+  wrap.className = "stepper";
+  wrap.innerHTML = `<div class="label">${label}</div><div class="ctrl"><button class="minus">−</button><div class="val">${value}</div><button class="plus">+</button></div>`;
+  let v = value;
+  const valEl = wrap.querySelector(".val");
+  wrap.querySelector(".minus").onclick = () => { v = Math.max(min, v-1); valEl.textContent = v; onChange(v); };
+  wrap.querySelector(".plus").onclick = () => { v = Math.min(max, v+1); valEl.textContent = v; onChange(v); };
+  return wrap;
+}
+
+/* =========================================================
+   7) MODALS
+========================================================= */
+function closeModal(){ document.getElementById("modal-root").innerHTML = ""; }
+
+function openDetailModal(exId){
+  const ex = getExDef(exId);
+  const root = document.getElementById("modal-root");
+  root.innerHTML = `
+    <div class="modal-bg"><div class="modal">
+      <div class="modal-head"><div class="modal-title">${ex.name.toUpperCase()}</div><button class="modal-close">×</button></div>
+      <div style="display:flex;justify-content:center;margin-bottom:12px;">${muscleDiagram(ex.group,70)}</div>
+      <div style="text-align:center;color:var(--chrome);font-size:12px;margin-bottom:14px;">${GROUP_LABEL[ex.group]||ex.group} çalıştırır · ${ex.equip}</div>
+      <div style="font-size:13px;color:var(--plate);font-weight:600;margin-bottom:6px;">Nasıl yapılır</div>
+      <ol style="padding-left:18px;margin:0 0 12px;">${(ex.steps||[]).map(s=>`<li style="font-size:13px;margin-bottom:6px;">${s}</li>`).join("")}</ol>
+      ${ex.tip ? `<div class="tip-box">💡 ${ex.tip}</div>` : ""}
+    </div></div>
+  `;
+  root.querySelector(".modal-bg").onclick = (e) => { if(e.target.classList.contains("modal-bg")) closeModal(); };
+  root.querySelector(".modal-close").onclick = closeModal;
+}
+
+function openPickerModal(dayKey){
+  const root = document.getElementById("modal-root");
+  const allEx = { ...EX, ...customEx };
+  function renderList(q){
+    return Object.entries(allEx).filter(([id,ex]) => ex.name.toLowerCase().includes(q.toLowerCase()))
+      .map(([id,ex]) => `<div class="picker-row" data-id="${id}">${muscleDiagram(ex.group,26)}<div><div class="n">${ex.name}</div><div class="m">${GROUP_LABEL[ex.group]||ex.group} · ${ex.equip}</div></div></div>`).join("");
+  }
+  root.innerHTML = `
+    <div class="modal-bg"><div class="modal">
+      <div class="modal-head"><div class="modal-title">HAREKET SEÇ</div><button class="modal-close">×</button></div>
+      <input id="picker-search" placeholder="Ara..." />
+      <div id="picker-list" style="max-height:360px;overflow-y:auto;">${renderList("")}</div>
+    </div></div>
+  `;
+  const listEl = root.querySelector("#picker-list");
+  root.querySelector("#picker-search").oninput = (e) => { listEl.innerHTML = renderList(e.target.value); attachPick(); };
+  function attachPick(){
+    listEl.querySelectorAll(".picker-row").forEach(row => {
+      row.onclick = () => {
+        program[dayKey].push({ exerciseId: row.dataset.id, sets:3, repsMin:8, repsMax:12 });
+        saveProgram(); renderProgram(); closeModal();
+      };
+    });
+  }
+  attachPick();
+  root.querySelector(".modal-bg").onclick = (e) => { if(e.target.classList.contains("modal-bg")) closeModal(); };
+  root.querySelector(".modal-close").onclick = closeModal;
+}
+
+/* =========================================================
+   8) RENDER: TODAY TAB
+========================================================= */
+function buildDraft(dayKey){
+  const entries = program[dayKey] || [];
+  const date = todayISO();
+  const existing = logs.find(l => l.date===date && l.dayKey===dayKey);
+  const map = {};
+  entries.forEach(entry => {
+    const prev = existing?.entries.find(e => e.exerciseId===entry.exerciseId);
+    map[entry.exerciseId] = (prev?.sets?.length === entry.sets)
+      ? prev.sets
+      : Array.from({length: entry.sets}, (_,i) => prev?.sets?.[i] || {weight:"", reps:"", done:false});
+  });
+  return map;
+}
+
+function lastWeight(exerciseId){
+  const date = todayISO();
+  const past = logs.filter(l => l.date!==date && l.entries.some(e=>e.exerciseId===exerciseId)).sort((a,b)=> a.date<b.date?1:-1);
+  if(!past.length) return null;
+  const entry = past[0].entries.find(e=>e.exerciseId===exerciseId);
+  return entry.sets.reduce((m,s)=> Number(s.weight)>Number(m?.weight||0) ? s : m, null);
+}
+
+function renderToday(){
+  const el = document.getElementById("view-today");
+  el.innerHTML = "";
+
+  const pills = document.createElement("div");
+  pills.className = "day-pills";
+  DAY_KEYS.forEach(d => {
+    const btn = document.createElement("button");
+    btn.textContent = DAY_LABEL[d];
+    if(d===todayDayKey) btn.classList.add("active");
+    btn.onclick = () => { todayDayKey = d; todayDraft = buildDraft(d); renderToday(); };
+    pills.appendChild(btn);
+  });
+  el.appendChild(pills);
+
+  const entries = program[todayDayKey] || [];
+  if(Object.keys(todayDraft).length === 0) todayDraft = buildDraft(todayDayKey);
+
+  if(entries.length === 0){
+    const p = document.createElement("div");
+    p.className = "empty-note";
+    p.textContent = "Bu gün için program yok — dinlenme günü 💤";
+    el.appendChild(p);
+    return;
+  }
+
+  entries.forEach(entry => {
+    const ex = getExDef(entry.exerciseId);
+    const sets = todayDraft[entry.exerciseId] || [];
+    const prevBest = lastWeight(entry.exerciseId);
+    const card = document.createElement("div");
+    card.className = "today-card";
+    card.innerHTML = `
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
+        <div class="diagram-btn" style="cursor:pointer">${muscleDiagram(ex.group,30)}</div>
+        <div style="flex:1;">
+          <div class="ex-name">${ex.name}</div>
+          <div class="ex-meta">Hedef: ${entry.sets} set × ${entry.isTimed ? entry.repsMin+"sn" : entry.repsMin+"-"+entry.repsMax+" tekrar"}${prevBest && !entry.isTimed ? " · Son sefer: "+(prevBest.weight||"?")+"kg × "+(prevBest.reps||"?") : ""}</div>
+        </div>
+      </div>
+      <div class="sets"></div>
+    `;
+    card.querySelector(".diagram-btn").onclick = () => openDetailModal(entry.exerciseId);
+    card.querySelector(".ex-name").onclick = () => openDetailModal(entry.exerciseId);
+    const setsEl = card.querySelector(".sets");
+    sets.forEach((s, i) => {
+      const row = document.createElement("div");
+      row.className = "set-row";
+      row.innerHTML = `
+        <div class="idx">${i+1}</div>
+        <input type="number" placeholder="${entry.isTimed?'sn':'kg'}" value="${s.weight}" />
+        ${!entry.isTimed ? `<input type="number" placeholder="tekrar" value="${s.reps}" />` : ""}
+        <button class="done-btn ${s.done?'done':''}">✓</button>
+      `;
+      const inputs = row.querySelectorAll("input");
+      inputs[0].oninput = (e) => { s.weight = e.target.value; };
+      if(inputs[1]) inputs[1].oninput = (e) => { s.reps = e.target.value; };
+      const doneBtn = row.querySelector(".done-btn");
+      doneBtn.onclick = () => { s.done = !s.done; doneBtn.classList.toggle("done", s.done); };
+      setsEl.appendChild(row);
+    });
+    el.appendChild(card);
+  });
+
+  const saveBtn = document.createElement("button");
+  saveBtn.id = "save-workout";
+  saveBtn.textContent = "ANTRENMANI KAYDET";
+  saveBtn.onclick = async () => {
+    const entriesOut = Object.entries(todayDraft).map(([exerciseId, sets]) => ({exerciseId, sets}));
+    const date = todayISO();
+    const logEntry = { date, dayKey: todayDayKey, entries: entriesOut };
+    logs = logs.filter(l => !(l.date===date && l.dayKey===todayDayKey));
+    logs.push(logEntry);
+    await saveLog(logEntry);
+    saveBtn.textContent = "KAYDEDİLDİ ✓";
+    setTimeout(() => saveBtn.textContent = "ANTRENMANI KAYDET", 1500);
+  };
+  el.appendChild(saveBtn);
+}
+
+/* =========================================================
+   9) RENDER: PROGRESS TAB
+========================================================= */
+let chartInstance = null;
+function renderProgress(){
+  const el = document.getElementById("view-progress");
+  const allEx = { ...EX, ...customEx };
+  el.innerHTML = `
+    <select id="progress-select">${Object.entries(allEx).map(([id,ex])=>`<option value="${id}" ${id===progressExId?'selected':''}>${ex.name}</option>`).join("")}</select>
+    <div class="stat-row">
+      <div class="stat-card"><div class="v" id="stat-total">0</div><div class="l">Toplam Antrenman</div></div>
+      <div class="stat-card"><div class="v" id="stat-max">—</div><div class="l">En Yüksek Ağırlık</div></div>
+    </div>
+    <div id="progress-chart-area"></div>
+  `;
+  el.querySelector("#progress-select").onchange = (e) => { progressExId = e.target.value; renderProgress(); };
+  drawProgressChart();
+}
+
+function drawProgressChart(){
+  const data = logs.filter(l => l.entries.some(e=>e.exerciseId===progressExId))
+    .map(l => {
+      const entry = l.entries.find(e=>e.exerciseId===progressExId);
+      const maxWeight = Math.max(0, ...entry.sets.map(s=>Number(s.weight)||0));
+      return { date: l.date, maxWeight };
+    }).sort((a,b)=> a.date<b.date?-1:1);
+
+  document.getElementById("stat-total").textContent = logs.length;
+  document.getElementById("stat-max").textContent = data.length ? Math.max(...data.map(d=>d.maxWeight))+"kg" : "—";
+
+  const area = document.getElementById("progress-chart-area");
+  if(data.length === 0){
+    area.innerHTML = `<div class="empty-note">Bu hareket için henüz kayıt yok. "Bugün" sekmesinden antrenman kaydettikçe burada grafik oluşur.</div>`;
+    return;
+  }
+  area.innerHTML = `<div class="chart-label">MAKSİMUM AĞIRLIK (kg)</div><div id="chart-wrap"><canvas id="progress-canvas"></canvas></div>`;
+  const ctx = document.getElementById("progress-canvas").getContext("2d");
+  if(chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: data.map(d=>d.date.slice(5)),
+      datasets: [{ data: data.map(d=>d.maxWeight), borderColor: "#E3A93A", backgroundColor:"#E3A93A", tension:0.3, pointRadius:3 }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{
+        x:{ ticks:{ color:"#93A19E", font:{size:10} }, grid:{ color:"#39423F" } },
+        y:{ ticks:{ color:"#93A19E", font:{size:10} }, grid:{ color:"#39423F" } }
+      }
+    }
+  });
+}
+
+/* =========================================================
+   10) HAFTALIK PROGRAM JSON YÜKLEME
+========================================================= */
+function renderUploadBox(){
+  const el = document.getElementById("view-program");
+  const box = document.createElement("div");
+  box.className = "upload-box";
+  box.innerHTML = `
+    <div class="lbl">Haftalık program dosyası (.json) yükle — mevcut programın yerini alır</div>
+    <label class="btn" for="program-upload">Dosya Seç</label>
+    <input type="file" id="program-upload" accept="application/json" />
+    <div id="upload-status"></div>
+  `;
+  el.prepend(box);
+  document.getElementById("program-upload").onchange = async (e) => {
+    const file = e.target.files[0];
+    const statusEl = document.getElementById("upload-status");
+    if(!file) return;
+    try{
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      if(!parsed.days) throw new Error("'days' alanı bulunamadı");
+      program = parsed.days;
+      customEx = parsed.customExercises || {};
+      DAY_KEYS.forEach(d => { if(!program[d]) program[d] = []; });
+      await saveProgram();
+      renderProgram();
+      renderUploadBox();
+      statusEl.textContent = "✓ Program yüklendi: " + (parsed.weekOf || "");
+      statusEl.style.color = "var(--ok)";
+    }catch(err){
+      statusEl.textContent = "Hata: " + err.message;
+      statusEl.style.color = "var(--danger)";
+    }
+  };
+}
+
+/* =========================================================
+   11) NAV / INIT
+========================================================= */
+function setTab(tab){
+  currentTab = tab;
+  document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("active", b.dataset.tab===tab));
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+  document.getElementById("view-"+tab).classList.add("active");
+  document.getElementById("view-title").textContent = { program:"PROGRAM", today:"BUGÜN", progress:"İLERLEME" }[tab];
+  if(tab==="program"){ renderProgram(); renderUploadBox(); }
+  if(tab==="today"){ todayDraft = buildDraft(todayDayKey); renderToday(); }
+  if(tab==="progress"){ renderProgress(); }
+}
+
+document.querySelectorAll("#nav button").forEach(b => b.onclick = () => setTab(b.dataset.tab));
+
+async function boot(){
+  await new Promise(resolve => {
+    onAuthStateChanged(auth, (user) => { if(user) resolve(); });
+    signInAnonymously(auth).catch(err => console.error("anonim giriş başarısız", err));
+  });
+  await loadProgram();
+  await loadLogs();
+  setTab("program");
+}
+
+/* =========================================================
+   12) ŞİFRE KİLİDİ
+========================================================= */
+document.getElementById("lock-btn").onclick = tryUnlock;
+document.getElementById("lock-input").addEventListener("keydown", (e) => { if(e.key==="Enter") tryUnlock(); });
+function tryUnlock(){
+  const val = document.getElementById("lock-input").value;
+  if(val === APP_PASSWORD){
+    document.getElementById("lock").style.display = "none";
+    boot();
+  }else{
+    document.getElementById("lock-error").textContent = "Yanlış şifre";
+  }
+}
+</script>
+</body>
+</html>
